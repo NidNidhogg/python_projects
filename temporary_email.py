@@ -1,0 +1,85 @@
+import requests
+import random
+import string
+import time
+import os
+from plyer import notification
+
+API = 'https://www.1secmail.com/api/v1/'
+domain_list = ["lsemail.com", "lsemail.net", "lsemail.org", "lsemail.info", "lsemail.biz"]
+domain = random.choice(domain_list)
+
+def generate_username():
+    name = string.ascii_lowercase + string.digits
+    username = ''.join(random.choice(name) for i in range(10))
+    return username
+
+def check_mail(mail=''):
+    req_link = f'{API}?action=getMessages&login={mail.split("@")[0]}&domain={mail.split("@")[1]}'
+    r = requests.get(req_link).json()
+    length = len(r)
+
+    if length == 0:
+        print('[INFO] На почте пока нет новых сообщений. Проверка происходит автоматически каждые 5 секунд')
+    else:
+        id_list = []
+        for i in r:
+            for k, v in i.items():
+                if k == 'id':
+                    id_list.append(v)
+        
+        print(f'[+] У вас {length} входящих сообщений! Почта обновляется каждые 5 секунд')
+
+        current_dir = os.getcwd()
+        final_dir = os.path.join(current_dir, 'all_mails')  
+        
+        if not os.path.exists(final_dir):
+            os.mkdir(final_dir)
+
+        for i in id_list:
+            read_msg = f'{API}?action=readMessage&login={mail.split("@")[0]}&domain={mail.split("@")[1]}&id={i}'
+            r = requests.get(read_msg).json()
+
+            sender = r.get('from')
+            subject = r.get('subject')
+            date = r.get('date')
+            content = r.get('textBody')
+
+            mail_file_path = os.path.join(final_dir, f'{i}.txt')
+
+            with open(mail_file_path, 'w') as file:
+                file.write(f'Сообщение от {sender} \nТема: {subject} \nДата: {date} \nСодержание: {content}')
+
+def delete_mail(mail=''):
+    url = 'https://www.1secmail.com/mailbox'
+    
+    data = {
+        'action': 'deleteMailbox',
+        'login': mail.split("@")[0],
+        'domain': mail.split("@")[1]
+    }
+
+    r = requests.post(url, data=data)
+    print(f'[+] Удалена почта: {mail}')
+
+def main():
+    try:
+        generate = generate_username()
+        mail = f'{generate}@{domain}'
+        print(f'[+] Ваш почтовый адрес: {mail}')
+    
+        while True:
+            check_mail(mail=mail)
+            time.sleep(5)
+                
+    except KeyboardInterrupt:
+         delete_mail(mail=mail)
+         print('Программа прервана')
+
+if __name__ == '__main__':
+    main()
+
+
+
+
+
